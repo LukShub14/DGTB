@@ -1,4 +1,4 @@
-# Digital Guestbook – New Year Event (1 ชุดพร้อมใช้)
+# Digital Guestbook – New Year Event
 
 ชุดนี้มี:
 - `index.html` : หน้าให้แขกสแกน QR แล้วส่งชื่อ/ข้อความ/รูป
