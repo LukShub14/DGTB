@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>New Year Event • Digital Guestbook</title>
+  <style>
+    :root{
+      --bg:#0b0f19; --card:#121a2b; --ink:#f3f4f6; --muted:#a7b0c0; --line:#22304d;
+      --btn:#22c55e; --btn2:#60a5fa; --danger:#ef4444;
+    }
+    *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+    body{margin:0; background:radial-gradient(1200px 600px at 20% -10%, #23395d 0%, transparent 60%),
+                     radial-gradient(900px 500px at 110% 10%, #1d3a2a 0%, transparent 60%),
+                     var(--bg);
+         color:var(--ink); font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial;
+    }
+    .wrap{max-width:720px; margin:0 auto; padding:20px 16px 40px;}
+    .hero{padding:18px 16px; border:1px solid var(--line); border-radius:18px; background:rgba(18,26,43,.75);
+          backdrop-filter: blur(10px);}
+    h1{margin:0; font-size:clamp(26px,4.6vw,42px); letter-spacing:.2px;}
+    .sub{margin:8px 0 0; color:var(--muted); line-height:1.4}
+    .card{margin-top:14px; padding:16px; border:1px solid var(--line); border-radius:18px; background:rgba(18,26,43,.70);}
+    label{display:block; font-size:14px; color:var(--muted); margin:12px 0 6px;}
+    input, textarea{
+      width:100%; border-radius:14px; border:1px solid #2a3b5f; background:#0e1526; color:var(--ink);
+      padding:12px 12px; font-size:16px; outline:none;
+    }
+    textarea{min-height:110px; resize:vertical;}
+    .row{display:grid; grid-template-columns: 1fr 1fr; gap:12px;}
+    @media (max-width:560px){ .row{grid-template-columns:1fr;} }
+    .actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;}
+    button{
+      border:0; border-radius:14px; padding:12px 14px; font-weight:700; cursor:pointer; font-size:16px;
+    }
+    .btn{background:var(--btn); color:#05210f; flex:1;}
+    .btn2{background:var(--btn2); color:#06162d;}
+    .ghost{background:transparent; color:var(--muted); border:1px solid var(--line);}
+    .hint{font-size:13px; color:var(--muted); margin-top:10px; line-height:1.45;}
+    .preview{margin-top:10px; display:none;}
+    .preview img{width:100%; max-height:320px; object-fit:contain; border-radius:16px; border:1px solid var(--line);}
+    .status{margin-top:10px; padding:10px 12px; border-radius:14px; display:none; border:1px solid var(--line);}
+    .ok{background:rgba(34,197,94,.12); color:#bff7d0;}
+    .bad{background:rgba(239,68,68,.12); color:#ffd0d0;}
+    .tiny{font-size:12px; color:var(--muted); margin-top:12px;}
+  </style>
+
+  <script src="https://unpkg.com/heic2any/dist/heic2any.min.js"></script>
+
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <h1>🎊 New Year Event • Digital Guestbook</h1>
+      <p class="sub">ฝากชื่อ + ข้อความ + รูปถ่ายไว้เป็นความทรงจำ ✨ (ไม่ต้องล็อกอิน)</p>
+      <div class="tiny">Tip: ถ่ายรูปแนวนอนก็ได้ แต่แนวตั้งจะโชว์สวยบนสไลด์มากกว่า</div>
+    </div>
+
+    <div class="card">
+      <form id="form">
+        <div class="row">
+          <div>
+            <label>ชื่อ / Nickname *</label>
+            <input id="name" required maxlength="60" placeholder="เช่น กัญญ์ / Soulx / ทีมแพ็ค ฯลฯ"/>
+          </div>
+          <div>
+            <label>แผนก/ทีม (optional)</label>
+            <input id="team" maxlength="60" placeholder="เช่น Process / WH / IT"/>
+          </div>
+        </div>
+
+        <label>ข้อความถึงทีมปีใหม่ *</label>
+        <textarea id="message" required maxlength="500" placeholder="ฝากอะไรไว้หน่อยน้าาา 🎆"></textarea>
+
+        <label>แนบรูป (optional)</label>
+       <input id="photo" type="file" accept="image/png,image/jpeg,image/jpg,image/heic,image/heif" capture="environment">
+
+
+        <div class="preview" id="preview">
+          <img id="img" alt="preview"/>
+        </div>
+
+        <div class="actions">
+          <button class="btn" type="submit">ส่งเข้ากล่องความทรงจำ ✨</button>
+          <button class="ghost" type="button" id="clear">ล้างฟอร์ม</button>
+        </div>
+
+        <div class="hint">
+          ✅ ส่งแล้วข้อมูลจะถูกเก็บใน Google Drive ของผู้ดูแล (เมลเดียว) <br/>
+          🔒 แขกไม่เห็น Drive และไม่ต้องมีบัญชี
+        </div>
+
+        <div class="status" id="status"></div>
+      </form>
+    </div>
+  </div>
+
+<script>
+/** ====== ตั้งค่าให้เรียบร้อยก่อนใช้งาน ======
+ *  1) ใส่ URL ของ Google Apps Script Web App หลัง Deploy
+ *  2) เปลี่ยน EVENT_NAME ได้ตามงาน
+ */
+const CONFIG = {
+  WEBAPP_URL: "https://script.google.com/macros/s/AKfycbz9Qnruk5_qucZwhrNXgD00K7uL5qOwYfUMjnahY5HTZz0lp3TALMXhMILItEc8un5IVw/exec",
+  EVENT_NAME: "NewYearEvent2026"
+};
+
+const $ = (id)=>document.getElementById(id);
+const form = $("form");
+const statusBox = $("status");
+const preview = $("preview");
+const img = $("img");
+
+$("photo").addEventListener("change", ()=>{
+  const f = $("photo").files?.[0];
+
+  if (!(f instanceof File)) {
+    preview.style.display = "none";
+    return;
+  }
+
+  img.src = URL.createObjectURL(f);
+  preview.style.display = "block";
+});
+
+
+$("clear").addEventListener("click", ()=>{
+  $("name").value=""; $("team").value=""; $("message").value=""; $("photo").value="";
+  preview.style.display="none";
+  showStatus("", "ok", false);
+});
+
+function showStatus(text, kind="ok", show=true){
+  statusBox.className = "status " + (kind==="ok" ? "ok" : "bad");
+  statusBox.textContent = text;
+  statusBox.style.display = show ? "block" : "none";
+}
+
+async function processImage(file) {
+  // ❗ กันทุกกรณีที่ไม่ใช่ File
+  if (!file || !(file instanceof File) || !file.type) return null;
+
+  const type = file.type.toLowerCase();
+
+  // PNG → ส่งตรง
+  if (type === "image/png") return file;
+
+  // JPG / JPEG → บีบ
+  if (type === "image/jpeg" || type === "image/jpg") {
+    if (file.size <= 3 * 1024 * 1024) return file;
+    return compressJPG(file);
+  }
+
+  // HEIC / HEIF → แปลงเป็น JPG
+  if (type === "image/heic" || type === "image/heif") {
+    return convertHEICtoJPG(file);
+  }
+
+  return null;
+}
+
+function compressJPG(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const maxW = 1600;
+      const scale = Math.min(1, maxW / img.width);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) return resolve(file);
+          resolve(
+            new File(
+              [blob],
+              file.name.replace(/\.\w+$/, ".jpg"),
+              { type: "image/jpeg" }
+            )
+          );
+        },
+        "image/jpeg",
+        0.82
+      );
+    };
+    img.onerror = () => resolve(file);
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+async function convertHEICtoJPG(file) {
+  try {
+    let result = await heic2any({
+      blob: file,
+      toType: "image/jpeg",
+      quality: 0.82,
+    });
+
+    const blob = Array.isArray(result) ? result[0] : result;
+    if (!blob) return null;
+
+    return new File(
+      [blob],
+      file.name.replace(/\.(heic|heif)$/i, ".jpg"),
+      { type: "image/jpeg" }
+    );
+  } catch {
+    return null;
+  }
+}
+
+
+document.getElementById("form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  if (!CONFIG.WEBAPP_URL) {
+    showStatus("ยังไม่ได้ใส่ WEBAPP_URL", "bad", true);
+    return;
+  }
+
+  const name = $("name").value.trim();
+  const team = $("team").value.trim();
+  const message = $("message").value.trim();
+
+  if (!name || !message) {
+    showStatus("กรอกชื่อและข้อความก่อนน้าา ✍️", "bad", true);
+    return;
+  }
+
+  showStatus("กำลังส่ง... (ถ้าเน็ตช้าอาจใช้เวลานิดนึง)", "ok", true);
+
+  // 1️⃣ ดึงไฟล์
+  const input = document.getElementById("photo");
+  let photo = input?.files?.length ? input.files[0] : null;
+
+  // 2️⃣ แปลง / บีบ / กันพัง
+  if (photo instanceof File) {
+  const processed = await processImage(photo);
+  photo = processed instanceof File ? processed : null;
+} else {
+  photo = null;
+}
+
+
+
+  // (optional) update preview จากไฟล์จริง
+  if (photo instanceof File) {
+  img.src = URL.createObjectURL(photo);
+  preview.style.display = "block";
+} else {
+  preview.style.display = "none";
+}
+
+
+  // 3️⃣ สร้าง FormData
+  const fd = new FormData();
+  fd.append("event", CONFIG.EVENT_NAME);
+  fd.append("name", name);
+  fd.append("team", team);
+  fd.append("message", message);
+  fd.append("clientTime", new Date().toISOString());
+
+  // 4️⃣ แนบรูป เฉพาะเมื่อเป็น File จริง
+ if (photo instanceof File) {
+  const buf = await photo.arrayBuffer();
+  const b64 = btoa(
+    String.fromCharCode(...new Uint8Array(buf))
+  );
+
+  fd.append("photoBase64", b64);
+  fd.append("photoName", photo.name);
+  fd.append("photoType", photo.type);
+}
+
+
+
+  // 5️⃣ ส่งไป Apps Script
+  try {
+    const res = await fetch(CONFIG.WEBAPP_URL, {
+      method: "POST",
+      body: fd,
+    });
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || !data || data.ok !== true) {
+      throw new Error((data && data.error) || "ส่งไม่สำเร็จ");
+    }
+
+    showStatus("ส่งสำเร็จ! ขอบคุณมาก 🎆", "ok", true);
+    $("message").value = "";
+    $("photo").value = "";
+    preview.style.display = "none";
+
+  } catch (err) {
+    showStatus("พังนิดนึง: " + (err?.message || err), "bad", true);
+  }
+});
+
+
+</script>
+</body>
+</html>

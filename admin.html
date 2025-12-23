@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Admin • Guestbook</title>
+  <style>
+    :root{ --bg:#0b0f19; --card:#121a2b; --ink:#f3f4f6; --muted:#a7b0c0; --line:#22304d; --btn:#60a5fa;}
+    *{box-sizing:border-box;}
+    body{margin:0; background:var(--bg); color:var(--ink); font-family:system-ui,-apple-system,Roboto,Arial;}
+    .wrap{max-width:1000px; margin:0 auto; padding:18px 14px 34px;}
+    h1{margin:0 0 10px; font-size:26px;}
+    .bar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px;}
+    input{background:#0e1526; border:1px solid #2a3b5f; color:var(--ink); padding:10px 12px; border-radius:12px; min-width:290px;}
+    button{background:var(--btn); border:0; padding:10px 12px; border-radius:12px; font-weight:800; cursor:pointer;}
+    .grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:12px;}
+    @media (max-width:900px){ .grid{grid-template-columns:repeat(2, 1fr);} }
+    @media (max-width:560px){ .grid{grid-template-columns:1fr;} input{min-width:0; width:100%;} }
+    .card{border:1px solid var(--line); border-radius:16px; background:rgba(18,26,43,.75); overflow:hidden;}
+    .img{width:100%; height:200px; object-fit:cover; background:#050814;}
+    .p{padding:12px;}
+    .name{font-weight:900; margin:0;}
+    .meta{color:var(--muted); font-size:12px; margin:6px 0 0;}
+    .msg{margin:10px 0 0; line-height:1.35;}
+    .err{color:#ffb4b4; margin-top:10px; display:none;}
+
+    .btn-del{
+  background:#ef4444;
+  color:#fff;
+  border:0;
+  padding:6px 10px;
+  border-radius:10px;
+  font-weight:700;
+  cursor:pointer;
+}
+.btn-del:hover{ opacity:.9; }
+
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>⚙️ Admin • Guestbook</h1>
+  <div class="bar">
+    <input id="webapp" placeholder="WEBAPP_URL (เหมือนหน้า index)"/>
+    <input id="token" placeholder="ADMIN_TOKEN"/>
+    <button id="load">โหลดข้อมูล</button>
+  </div>
+  <div class="err" id="err"></div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<script>
+const grid = document.getElementById("grid");
+const err = document.getElementById("err");
+function showErr(t){ err.style.display="block"; err.textContent=t; }
+function hideErr(){ err.style.display="none"; err.textContent=""; }
+
+document.getElementById("load").addEventListener("click", async ()=>{
+  hideErr();
+  const webapp = document.getElementById("webapp").value.trim();
+  const token = document.getElementById("token").value.trim();
+  if(!webapp || !token){ showErr("ใส่ WEBAPP_URL และ ADMIN_TOKEN ก่อน"); return; }
+
+  grid.innerHTML = "";
+  try{
+    const url = webapp + "?action=list&token=" + encodeURIComponent(token);
+    const res = await fetch(url);
+    const data = await res.json();
+    if(!res.ok || !data.ok) throw new Error(data.error || "โหลดไม่สำเร็จ");
+    const rows = data.rows || [];
+    if(rows.length===0){ showErr("ยังไม่มีข้อมูล"); return; }
+    rows.forEach(r=>{
+      const div = document.createElement("div");
+        div.className = "card";
+        div.dataset.rowindex = r.__rowIndex;        // ⭐ สำคัญ
+        div.dataset.fileid = r.photoFileId || "";   // ⭐ สำคัญ
+
+      const img = document.createElement("img");
+      img.className="img";
+      img.src = r.photoUrl || "data:image/svg+xml;charset=utf-8," + encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='800' height='500'><rect width='100%' height='100%' fill='#050814'/><text x='50%' y='50%' fill='#a7b0c0' font-size='28' text-anchor='middle' dominant-baseline='middle'>No Photo</text></svg>`);
+      const p = document.createElement("div"); p.className="p";
+      p.innerHTML = `
+  <p class="name">${escapeHtml(r.name||"-")}</p>
+  <div class="meta">${escapeHtml(r.team||"")} • ${escapeHtml(r.time||"")}</div>
+  <div class="msg">${escapeHtml(r.message||"").replace(/\n/g,"<br/>")}</div>
+  <div style="margin-top:10px; text-align:right;">
+    <button class="btn-del" onclick="deletePost(this)">🗑️ ลบ</button>
+  </div>`;
+
+      div.appendChild(img); div.appendChild(p);
+      grid.appendChild(div);
+    });
+  }catch(e){ showErr("พัง: " + (e.message || e)); }
+});
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
+}
+
+async function deletePost(btn){
+  if(!confirm("ลบโพสต์นี้ถาวร?")) return;
+
+  const card = btn.closest(".card");
+  const rowIndex = card.dataset.rowindex;
+  const fileId = card.dataset.fileid;
+
+  const webapp = document.getElementById("webapp").value.trim();
+  const token = document.getElementById("token").value.trim();
+
+  if(!webapp || !token){
+    alert("WEBAPP_URL หรือ ADMIN_TOKEN หาย");
+    return;
+  }
+
+  const fd = new FormData();
+  fd.append("action", "delete");
+  fd.append("token", token);
+  fd.append("rowIndex", rowIndex);
+  fd.append("photoFileId", fileId);
+
+  try{
+    const res = await fetch(webapp, { method:"POST", body: fd });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || "ลบไม่สำเร็จ");
+
+    // ลบ card ออกจากหน้าทันที
+    card.remove();
+  }catch(e){
+    alert("พัง: " + (e.message || e));
+  }
+}
+
+</script>
+</body>
+</html>
