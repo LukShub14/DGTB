@@ -101,36 +101,50 @@
   </div>
 
 <script>
-/** ====== ตั้งค่าให้เรียบร้อยก่อนใช้งาน ======
- *  1) ใส่ URL ของ Google Apps Script Web App หลัง Deploy
- *  2) เปลี่ยน EVENT_NAME ได้ตามงาน
- */
+/** ====== CONFIG ====== */
 const CONFIG = {
   WEBAPP_URL: "https://script.google.com/macros/s/AKfycbz9Qnruk5_qucZwhrNXgD00K7uL5qOwYfUMjnahY5HTZz0lp3TALMXhMILItEc8un5IVw/exec",
   EVENT_NAME: "NewYearEvent2026"
 };
 
 const $ = (id)=>document.getElementById(id);
-const form = $("form");
 const statusBox = $("status");
 const preview = $("preview");
 const img = $("img");
 
+/* =================================================
+ * ✅ SAFE base64 (แก้ Maximum call stack size exceeded)
+ * ================================================= */
+function arrayBufferToBase64(buffer) {
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000; // 32KB
+
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(
+      null,
+      bytes.subarray(i, i + chunkSize)
+    );
+  }
+  return btoa(binary);
+}
+
+/* ================= UI ================= */
 $("photo").addEventListener("change", ()=>{
   const f = $("photo").files?.[0];
-
   if (!(f instanceof File)) {
     preview.style.display = "none";
     return;
   }
-
   img.src = URL.createObjectURL(f);
   preview.style.display = "block";
 });
 
-
 $("clear").addEventListener("click", ()=>{
-  $("name").value=""; $("team").value=""; $("message").value=""; $("photo").value="";
+  $("name").value="";
+  $("team").value="";
+  $("message").value="";
+  $("photo").value="";
   preview.style.display="none";
   showStatus("", "ok", false);
 });
@@ -141,22 +155,19 @@ function showStatus(text, kind="ok", show=true){
   statusBox.style.display = show ? "block" : "none";
 }
 
+/* ================= IMAGE PROCESS ================= */
 async function processImage(file) {
-  // ❗ กันทุกกรณีที่ไม่ใช่ File
   if (!file || !(file instanceof File) || !file.type) return null;
 
   const type = file.type.toLowerCase();
 
-  // PNG → ส่งตรง
   if (type === "image/png") return file;
 
-  // JPG / JPEG → บีบ
   if (type === "image/jpeg" || type === "image/jpg") {
     if (file.size <= 3 * 1024 * 1024) return file;
     return compressJPG(file);
   }
 
-  // HEIC / HEIF → แปลงเป็น JPG
   if (type === "image/heic" || type === "image/heif") {
     return convertHEICtoJPG(file);
   }
@@ -175,19 +186,16 @@ function compressJPG(file) {
       canvas.width = img.width * scale;
       canvas.height = img.height * scale;
 
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
 
       canvas.toBlob(
         (blob) => {
           if (!blob) return resolve(file);
-          resolve(
-            new File(
-              [blob],
-              file.name.replace(/\.\w+$/, ".jpg"),
-              { type: "image/jpeg" }
-            )
-          );
+          resolve(new File(
+            [blob],
+            file.name.replace(/\.\w+$/, ".jpg"),
+            { type: "image/jpeg" }
+          ));
         },
         "image/jpeg",
         0.82
@@ -200,15 +208,12 @@ function compressJPG(file) {
 
 async function convertHEICtoJPG(file) {
   try {
-    let result = await heic2any({
+    const result = await heic2any({
       blob: file,
       toType: "image/jpeg",
       quality: 0.82,
     });
-
     const blob = Array.isArray(result) ? result[0] : result;
-    if (!blob) return null;
-
     return new File(
       [blob],
       file.name.replace(/\.(heic|heif)$/i, ".jpg"),
@@ -219,14 +224,9 @@ async function convertHEICtoJPG(file) {
   }
 }
 
-
-document.getElementById("form").addEventListener("submit", async (e) => {
+/* ================= SUBMIT ================= */
+$("form").addEventListener("submit", async (e) => {
   e.preventDefault();
-
-  if (!CONFIG.WEBAPP_URL) {
-    showStatus("ยังไม่ได้ใส่ WEBAPP_URL", "bad", true);
-    return;
-  }
 
   const name = $("name").value.trim();
   const team = $("team").value.trim();
@@ -239,30 +239,14 @@ document.getElementById("form").addEventListener("submit", async (e) => {
 
   showStatus("กำลังส่ง... (ถ้าเน็ตช้าอาจใช้เวลานิดนึง)", "ok", true);
 
-  // 1️⃣ ดึงไฟล์
-  const input = document.getElementById("photo");
-  let photo = input?.files?.length ? input.files[0] : null;
+  const input = $("photo");
+  let photo = input?.files?.[0] || null;
 
-  // 2️⃣ แปลง / บีบ / กันพัง
   if (photo instanceof File) {
-  const processed = await processImage(photo);
-  photo = processed instanceof File ? processed : null;
-} else {
-  photo = null;
-}
+    const processed = await processImage(photo);
+    photo = processed instanceof File ? processed : null;
+  }
 
-
-
-  // (optional) update preview จากไฟล์จริง
-  if (photo instanceof File) {
-  img.src = URL.createObjectURL(photo);
-  preview.style.display = "block";
-} else {
-  preview.style.display = "none";
-}
-
-
-  // 3️⃣ สร้าง FormData
   const fd = new FormData();
   fd.append("event", CONFIG.EVENT_NAME);
   fd.append("name", name);
@@ -270,32 +254,36 @@ document.getElementById("form").addEventListener("submit", async (e) => {
   fd.append("message", message);
   fd.append("clientTime", new Date().toISOString());
 
-  // 4️⃣ แนบรูป เฉพาะเมื่อเป็น File จริง
- if (photo instanceof File) {
-  const buf = await photo.arrayBuffer();
-  const b64 = btoa(
-    String.fromCharCode(...new Uint8Array(buf))
-  );
+  if (input?.files?.length) {
+    const originalFile = input.files[0];
 
-  fd.append("photoBase64", b64);
-  fd.append("photoName", photo.name);
-  fd.append("photoType", photo.type);
-}
+    // ORIGINAL (full size)
+    const originalB64 = arrayBufferToBase64(
+      await originalFile.arrayBuffer()
+    );
+    fd.append("photoOriginalBase64", originalB64);
+    fd.append("photoOriginalName", originalFile.name);
+    fd.append("photoOriginalType", originalFile.type);
 
+    // PREVIEW (compressed)
+    if (photo instanceof File) {
+      const previewB64 = arrayBufferToBase64(
+        await photo.arrayBuffer()
+      );
+      fd.append("photoPreviewBase64", previewB64);
+      fd.append("photoPreviewName", photo.name);
+      fd.append("photoPreviewType", photo.type);
+    }
+  }
 
-
-  // 5️⃣ ส่งไป Apps Script
   try {
     const res = await fetch(CONFIG.WEBAPP_URL, {
       method: "POST",
-      body: fd,
+      body: fd
     });
 
-    const data = await res.json().catch(() => null);
-
-    if (!res.ok || !data || data.ok !== true) {
-      throw new Error((data && data.error) || "ส่งไม่สำเร็จ");
-    }
+    const data = await res.json();
+    if (!data?.ok) throw new Error(data?.error || "ส่งไม่สำเร็จ");
 
     showStatus("ส่งสำเร็จ! ขอบคุณมาก 🎆", "ok", true);
     $("message").value = "";
@@ -303,11 +291,10 @@ document.getElementById("form").addEventListener("submit", async (e) => {
     preview.style.display = "none";
 
   } catch (err) {
-    showStatus("พังนิดนึง: " + (err?.message || err), "bad", true);
+    showStatus("พังนิดนึง: " + err.message, "bad", true);
   }
 });
-
-
 </script>
+
 </body>
 </html>
