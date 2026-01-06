@@ -254,29 +254,11 @@ $("form").addEventListener("submit", async (e) => {
   fd.append("message", message);
   fd.append("clientTime", new Date().toISOString());
 
-  if (input?.files?.length) {
-    const originalFile = input.files[0];
+ if (photo instanceof File) {
+  fd.append("photo", photo); // ส่งไฟล์ตรง
+}
 
-    // ORIGINAL (full size)
-    const originalB64 = arrayBufferToBase64(
-      await originalFile.arrayBuffer()
-    );
-    fd.append("photoOriginalBase64", originalB64);
-    fd.append("photoOriginalName", originalFile.name);
-    fd.append("photoOriginalType", originalFile.type);
-
-    // PREVIEW (compressed)
-    if (photo instanceof File) {
-      const previewB64 = arrayBufferToBase64(
-        await photo.arrayBuffer()
-      );
-      fd.append("photoPreviewBase64", previewB64);
-      fd.append("photoPreviewName", photo.name);
-      fd.append("photoPreviewType", photo.type);
-    }
-  }
-
-  try {
+     try {
     const res = await fetch(CONFIG.WEBAPP_URL, {
       method: "POST",
       body: fd

@@ -1,112 +1,471 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="th">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Guestbook Slideshow</title>
-<style>
-  :root{ --bg:#000; --ink:#fff; --muted:#cbd5e1; }
-  *{box-sizing:border-box;}
-  body{margin:0; background:var(--bg); color:var(--ink); font-family:system-ui,-apple-system,Roboto,Arial; overflow:hidden;}
-  .frame{position:fixed; inset:0; display:flex; align-items:center; justify-content:center;}
-  .img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:contrast(1.05) saturate(1.05);}
-  .shade{position:absolute; inset:0; background:linear-gradient(to top, rgba(0,0,0,.55) 0%, rgba(0,0,0,.10) 55%, rgba(0,0,0,.55) 100%);}
-  .card{
-    position:absolute; left:3.5vw; right:3.5vw; bottom:3.5vw;
-    padding:22px 22px; border-radius:22px;
-    background:rgba(0,0,0,.35); backdrop-filter: blur(10px);
-    border:1px solid rgba(255,255,255,.12);
-    max-width:1100px; margin:0 auto;
-  }
-  .name{font-size:clamp(22px,3.2vw,44px); font-weight:900; margin:0;}
-  .meta{color:var(--muted); margin-top:6px; font-size:clamp(12px,1.5vw,18px);}
-  .msg{margin-top:12px; font-size:clamp(16px,2.2vw,28px); line-height:1.25; white-space:pre-wrap;}
-  .tiny{position:absolute; top:14px; right:14px; color:rgba(255,255,255,.65); font-size:12px;}
-</style>
-</head>
-<body>
-<div class="frame">
-  <img class="img" id="img" alt="slide"/>
-  <div class="shade"></div>
-  <div class="card">
-    <div class="tiny" id="tiny"></div>
-    <p class="name" id="name">กำลังโหลด...</p>
-    <div class="meta" id="meta"></div>
-    <div class="msg" id="msg"></div>
-  </div>
-</div>
+  <head>
+    <meta charset="UTF-8" />
+    <title>New Year Hero Card – Event Style</title>
 
-<script>
-/** ตั้งค่า */
-const CONFIG = {
-  WEBAPP_URL: "https://script.google.com/macros/s/AKfycbz9Qnruk5_qucZwhrNXgD00K7uL5qOwYfUMjnahY5HTZz0lp3TALMXhMILItEc8un5IVw/exec",
-  ADMIN_TOKEN: "NY2026_SIM_Admin_9XkL2Q",
-  INTERVAL_MS: 7000
-};
+    <style>
+      * {
+        box-sizing: border-box;
+        font-family: "Segoe UI", sans-serif;
+      }
 
-const elImg = document.getElementById("img");
-const elName = document.getElementById("name");
-const elMeta = document.getElementById("meta");
-const elMsg = document.getElementById("msg");
-const elTiny = document.getElementById("tiny");
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: radial-gradient(circle at top, #1e293b, #020617 70%);
+      }
 
-let rows = [];
-let idx = 0;
+      /* ===== Wrapper ===== */
+      .hero-wrapper {
+        position: relative;
+        width: 87%;
+        height: 95vh;
+        padding-top: 100px;
+      }
 
-function setSlide(r){
-  elName.textContent = r.name || "-";
-  elMeta.textContent = [r.team, r.time].filter(Boolean).join(" • ");
-  elMsg.textContent = r.message || "";
-  elImg.src = r.photoUrl || "data:image/svg+xml;charset=utf-8," + encodeURIComponent(
-    `<svg xmlns='http://www.w3.org/2000/svg' width='1920' height='1080'>
+      /* ===== Headline ===== */
+      .headline {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        padding: 22px 0 16px;
+        text-align: center;
+        font-size: clamp(2.5rem, 4.5vw, 3.5rem);
+        font-weight: 1000;
+        letter-spacing: 0.18em;
+        z-index: 10;
+        pointer-events: none;
+
+        /* gold gradient text */
+        background: linear-gradient(90deg, #facc15, #fde68a, #fb7185, #facc15);
+        background-size: 300% 150%;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+
+        /* glow */
+        filter: drop-shadow(0 0 12px #facc1590) drop-shadow(0 0 24px #fb718560);
+
+        animation: shine 8s linear infinite;
+      }
+
+      /* glass bar behind headline */
+      .headline::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        backdrop-filter: blur(6px);
+        z-index: -1;
+        border-radius: 20px 20px 0 0;
+      }
+
+      /* subtle spark line */
+      .headline::after {
+        content: "";
+        position: absolute;
+        bottom: 6px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 140px;
+        height: 2px;
+        opacity: 0.9;
+      }
+
+      @keyframes shine {
+        from {
+          background-position: 0% 50%;
+        }
+        to {
+          background-position: 300% 50%;
+        }
+      }
+
+      /* ===== Hero Card ===== */
+      .hero-card {
+        display: flex;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(14px);
+        border-radius: 20px;
+        overflow: hidden;
+        position: relative;
+        z-index: 10;
+        /* background: linear-gradient(#fff, #fff) padding-box,
+          linear-gradient(90deg, #a3e635, #22c55e, #facc15) border-box; */
+        box-shadow: 0 0 12px 2px #e7e54a, 0 0 12px 4px #e96d1a;
+      }
+
+      /* ===== Slider ===== */
+      .slider {
+        flex: 1.6;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.795);
+
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .slider::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: var(--bg);
+        background-size: cover;
+        background-position: center;
+        filter: blur(22px) brightness(0.6);
+        transform: scale(1.15);
+      }
+
+      .img {
+        position: relative;
+        z-index: 1;
+        max-width: 97%;
+        max-height: 97%;
+        object-fit: contain;
+        border-radius: 16px;
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+      }
+
+      /* ===== Content ===== */
+      .hero-content {
+        flex: 1;
+        padding: 40px;
+        color: #fff;
+      }
+
+      .name {
+        margin-top: 10px;
+        z-index: 101;
+        font-size: 35px;
+        font-weight: 600;
+        position: relative;
+        z-index: 30;
+        padding: 7px 18px;
+        border-radius: 12px;
+        border: 3px solid transparent;
+        /* background: linear-gradient(#ffffff00, #fff) padding-box,
+          linear-gradient(90deg, #a3e635, #22c55e, #facc15) border-box; */
+        box-shadow: 0 0 12px 2px #a3e63580, 0 0 12px 4px #22c55e60;
+
+        color: #fdfdfd;
+        margin-bottom: 10px;
+      }
+
+      .meta {
+        margin-top: 8px;
+        color: #e5e7eb;
+        font-size: 16px;
+        font-weight: 500;
+        position: relative;
+        z-index: 30;
+        padding: 3px 10px;
+        margin-bottom: 8px;
+      }
+
+      .msg {
+        margin-top: 15px;
+        line-height: 1.7;
+        color: #ffffff;
+        font-size: 22px;
+        font-weight: 500;
+        position: relative;
+        z-index: 30;
+        padding: 7px 14px;
+        border-radius: 10px;
+        border: 3px solid transparent;
+        /* background: linear-gradient(#fff, #fff) padding-box,
+          linear-gradient(90deg, #fb7185, #38bdf8) border-box; */
+        box-shadow: 0 0 16px 2px #fb7185cc, 0 0 32px 8px #38bdf880;
+        margin-bottom: 8px;
+      }
+
+      .tiny {
+        margin-top: 8px;
+        font-size: 16px;
+        color: #ffffff;
+        font-weight: 500;
+        position: relative;
+        z-index: 30;
+        padding: 3px 10px;
+        border-radius: 5px;
+        margin-bottom: 8px;
+      }
+
+      /* ===== Responsive ===== */
+      @media (max-width: 768px) {
+        .hero-card {
+          flex-direction: column;
+        }
+        .slider {
+          height: 260px;
+        }
+        .hero-content {
+          padding: 30px;
+        }
+      }
+
+      .corner-img {
+        position: absolute;
+        width: 110px;
+        height: auto;
+        z-index: 20;
+        pointer-events: none;
+        user-select: none;
+      }
+      .top-left {
+        height: 250px;
+        width: auto;
+        top: 20px;
+        left: 10px;
+      }
+      .bottom-right {
+        height: 200px;
+        width: auto;
+        right: 40px;
+        bottom: 20px;
+      }
+
+      #confetti-canvas {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 15;
+      }
+
+      .meta-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 4px;
+      }
+      .meta-row .tiny {
+        margin-bottom: 0;
+      }
+      .meta-row .meta {
+        margin-bottom: 0;
+      }
+    </style>
+  </head>
+
+  <body>
+    <canvas
+      id="confetti-canvas"
+      style="position: fixed; inset: 0; pointer-events: none; z-index: 15"
+    ></canvas>
+    <img
+      src="https://freepngimg.com/save/150756-man-flying-iron-marvel-free-hq-image/519x850.png"
+      class="corner-img top-left"
+      alt="cat corner"
+    />
+    <img
+      src="https://www.pngarc.com/wp-content/uploads/2023/06/Spider-Man-Comic-book-background-png-image-1-min.png"
+      class="corner-img bottom-right"
+      alt="cat corner"
+    />
+    <div class="hero-wrapper">
+      <div class="headline">HAPPY NEW YEAR 2026</div>
+
+      <div class="hero-card">
+        <div class="slider" id="slider">
+          <img class="img" id="img" />
+        </div>
+
+        <div class="hero-content">
+          <div class="meta-row">
+            <div class="tiny" id="tiny"></div>
+            <div class="meta" id="meta"></div>
+          </div>
+          <div class="name" id="name"></div>
+          <div class="msg" id="msg"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      /** ตั้งค่า */
+      const CONFIG = {
+        WEBAPP_URL:
+          "https://script.google.com/macros/s/AKfycbz9Qnruk5_qucZwhrNXgD00K7uL5qOwYfUMjnahY5HTZz0lp3TALMXhMILItEc8un5IVw/exec",
+        ADMIN_TOKEN: "NY2026_SIM_Admin_9XkL2Q",
+        INTERVAL_MS: 7000,
+      };
+
+      const elImg = document.getElementById("img");
+      const elName = document.getElementById("name");
+      const elMeta = document.getElementById("meta");
+      const elMsg = document.getElementById("msg");
+      const elTiny = document.getElementById("tiny");
+
+      let rows = [];
+      let idx = 0;
+
+      function formatDate(str) {
+        if (!str) return "";
+        // รองรับรูปแบบ ISO หรือ timestamp
+        const d = new Date(str);
+        if (isNaN(d)) return str;
+        const thMonths = [
+          "ม.ค.",
+          "ก.พ.",
+          "มี.ค.",
+          "เม.ย.",
+          "พ.ค.",
+          "มิ.ย.",
+          "ก.ค.",
+          "ส.ค.",
+          "ก.ย.",
+          "ต.ค.",
+          "พ.ย.",
+          "ธ.ค.",
+        ];
+        const day = d.getDate();
+        const month = thMonths[d.getMonth()];
+        const year = d.getFullYear() + 543;
+        const hour = d.getHours().toString().padStart(2, "0");
+        const min = d.getMinutes().toString().padStart(2, "0");
+        const sec = d.getSeconds().toString().padStart(2, "0");
+        return `${day} ${month} ${year} เวลา ${hour}:${min}:${sec} `;
+      }
+
+      (function confettiPaper() {
+        const canvas = document.getElementById("confetti-canvas");
+        const ctx = canvas.getContext("2d");
+        let W = window.innerWidth,
+          H = window.innerHeight;
+        function resize() {
+          W = window.innerWidth;
+          H = window.innerHeight;
+          canvas.width = W;
+          canvas.height = H;
+        }
+        window.addEventListener("resize", resize);
+        resize();
+        // Paper/confetti params
+        const colors = [
+          "#fffbe7",
+          "#facc15",
+          "#fb7185",
+          "#38bdf8",
+          "#a3e635",
+          "#f472b6",
+          "#fbbf24",
+        ];
+        const papers = Array.from({ length: 40 }, (_, i) => ({
+          x: Math.random() * W,
+          y: Math.random() * -H,
+          w: 8 + Math.random() * 8,
+          h: 6 + Math.random() * 6,
+          r: Math.random() * 2 * Math.PI,
+          dr: (Math.random() - 0.5) * 0.04,
+          speed: 1.2 + Math.random() * 1.8,
+          sway: 30 + Math.random() * 30,
+          swaySpeed: 0.008 + Math.random() * 0.012,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          t: Math.random() * 1000,
+        }));
+        function draw() {
+          ctx.clearRect(0, 0, W, H);
+          for (const p of papers) {
+            p.t += p.swaySpeed;
+            p.y += p.speed;
+            p.x += Math.sin(p.t) * 0.8;
+            p.r += p.dr;
+            ctx.save();
+            ctx.translate(p.x + Math.sin(p.t) * p.sway, p.y);
+            ctx.rotate(p.r);
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = 0.85;
+            ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+            ctx.globalAlpha = 1;
+            ctx.restore();
+            if (p.y > H + 40) {
+              p.y = -20;
+              p.x = Math.random() * W;
+              p.t = Math.random() * 1000;
+            }
+          }
+          requestAnimationFrame(draw);
+        }
+        draw();
+      })();
+
+      function setSlide(r) {
+        elName.textContent = r.name || "-";
+        // elMeta.textContent = [r.team, r.time].filter(Boolean).join(" • ");
+        const metaArr = [r.team, formatDate(r.time)].filter(Boolean);
+        elMeta.textContent = metaArr.join(" • ");
+        elMsg.textContent = r.message || "";
+        elImg.src =
+          r.photoUrl ||
+          "data:image/svg+xml;charset=utf-8," +
+            encodeURIComponent(
+              `<svg xmlns='http://www.w3.org/2000/svg' width='1920' height='1080'>
       <defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>
         <stop offset='0' stop-color='#1f2937'/><stop offset='1' stop-color='#0b0f19'/>
       </linearGradient></defs>
       <rect width='100%' height='100%' fill='url(#g)'/>
       <text x='50%' y='50%' fill='#cbd5e1' font-size='64' text-anchor='middle' dominant-baseline='middle'>Guestbook</text>
     </svg>`
-  );
-  elTiny.textContent = `(${idx+1}/${rows.length})`;
-}
-
-async function loadRows(){
-  if(!CONFIG.WEBAPP_URL.includes("http")) throw new Error("ยังไม่ได้ใส่ WEBAPP_URL");
-  if(!CONFIG.ADMIN_TOKEN || CONFIG.ADMIN_TOKEN.includes("PUT_")) throw new Error("ยังไม่ได้ใส่ ADMIN_TOKEN");
-  const url = CONFIG.WEBAPP_URL + "?action=list&token=" + encodeURIComponent(CONFIG.ADMIN_TOKEN);
-  const res = await fetch(url);
-  const data = await res.json();
-  if(!res.ok || !data.ok) throw new Error(data.error || "โหลดไม่สำเร็จ");
-  rows = (data.rows || []).filter(Boolean);
-  // ใหม่สุดขึ้นก่อน
-  rows.reverse();
-  idx = 0;
-}
-
-async function start(){
-  try{
-    await loadRows();
-    if(rows.length===0){
-      elName.textContent = "ยังไม่มีคนฝากข้อความ";
-      elMeta.textContent = "";
-      elMsg.textContent = "รอคนสแกน QR แล้วส่งได้เลย 🎉";
-      return;
-    }
-    setSlide(rows[idx]);
-    setInterval(async ()=>{
-      idx = (idx + 1) % rows.length;
-      setSlide(rows[idx]);
-      // รีเฟรชรายการทุก 1 รอบ เพื่อดึงของใหม่
-      if(idx === 0){
-        try{ await loadRows(); } catch(e){ /* ignore */ }
+            );
+        elTiny.textContent = `(${idx + 1}/${rows.length})`;
       }
-    }, CONFIG.INTERVAL_MS);
-  }catch(e){
-    elName.textContent = "ตั้งค่าไม่ครบ/โหลดไม่สำเร็จ";
-    elMeta.textContent = "";
-    elMsg.textContent = String(e.message || e);
-  }
-}
-start();
-</script>
-</body>
+
+      async function loadRows() {
+        if (!CONFIG.WEBAPP_URL.includes("http"))
+          throw new Error("ยังไม่ได้ใส่ WEBAPP_URL");
+        if (!CONFIG.ADMIN_TOKEN || CONFIG.ADMIN_TOKEN.includes("PUT_"))
+          throw new Error("ยังไม่ได้ใส่ ADMIN_TOKEN");
+        const url =
+          CONFIG.WEBAPP_URL +
+          "?action=list&token=" +
+          encodeURIComponent(CONFIG.ADMIN_TOKEN);
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || "โหลดไม่สำเร็จ");
+        rows = (data.rows || []).filter(Boolean);
+        // ใหม่สุดขึ้นก่อน
+        rows.reverse();
+        idx = 0;
+      }
+
+      async function start() {
+        try {
+          await loadRows();
+          if (rows.length === 0) {
+            elName.textContent = "ยังไม่มีคนฝากข้อความ";
+            elMeta.textContent = "";
+            elMsg.textContent = "รอคนสแกน QR แล้วส่งได้เลย 🎉";
+            return;
+          }
+          setSlide(rows[idx]);
+          setInterval(async () => {
+            idx = (idx + 1) % rows.length;
+            setSlide(rows[idx]);
+            // รีเฟรชรายการทุก 1 รอบ เพื่อดึงของใหม่
+            if (idx === 0) {
+              try {
+                await loadRows();
+              } catch (e) {
+                /* ignore */
+              }
+            }
+          }, CONFIG.INTERVAL_MS);
+        } catch (e) {
+          elName.textContent = "ตั้งค่าไม่ครบ/โหลดไม่สำเร็จ";
+          elMeta.textContent = "";
+          elMsg.textContent = String(e.message || e);
+        }
+      }
+      start();
+    </script>
+  </body>
 </html>
