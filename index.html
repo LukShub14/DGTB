@@ -250,15 +250,33 @@ $("form").addEventListener("submit", async (e) => {
   const fd = new FormData();
   fd.append("event", CONFIG.EVENT_NAME);
   fd.append("name", name);
-  fd.append("team", team); 
+  fd.append("team", team);
   fd.append("message", message);
   fd.append("clientTime", new Date().toISOString());
 
- if (photo instanceof File) {
-  fd.append("photo", photo); // ส่งไฟล์ตรง
-}
+  if (input?.files?.length) {
+    const originalFile = input.files[0];
 
-     try {
+    // ORIGINAL (full size)
+    const originalB64 = arrayBufferToBase64(
+      await originalFile.arrayBuffer()
+    );
+    fd.append("photoOriginalBase64", originalB64);
+    fd.append("photoOriginalName", originalFile.name);
+    fd.append("photoOriginalType", originalFile.type);
+
+    // PREVIEW (compressed)
+    if (photo instanceof File) {
+      const previewB64 = arrayBufferToBase64(
+        await photo.arrayBuffer()
+      );
+      fd.append("photoPreviewBase64", previewB64);
+      fd.append("photoPreviewName", photo.name);
+      fd.append("photoPreviewType", photo.type);
+    }
+  }
+
+  try {
     const res = await fetch(CONFIG.WEBAPP_URL, {
       method: "POST",
       body: fd
