@@ -44,6 +44,7 @@
         /* gold gradient text */
         background: linear-gradient(90deg, #facc15, #fde68a, #fb7185, #facc15);
         background-size: 300% 150%;
+        background-clip: text;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
 
@@ -305,8 +306,10 @@
       const elMsg = document.getElementById("msg");
       const elTiny = document.getElementById("tiny");
 
-      let rows = [];
-      let idx = 0;
+      let mainQueue = [];      // คิวหลัก (ของเก่า)
+      let priorityQueue = []; // คิวแทรก (ของใหม่)
+      let mainIdx = 0;
+
 
       function formatDate(str) {
         if (!str) return "";
@@ -416,7 +419,7 @@
       <text x='50%' y='50%' fill='#cbd5e1' font-size='64' text-anchor='middle' dominant-baseline='middle'>Guestbook</text>
     </svg>`
             );
-        elTiny.textContent = `(${idx + 1}/${rows.length})`;
+        elTiny.textContent = `(${priorityQueue.length > 0 ? "NEW" : mainIdx}/${mainQueue.length})`;
       }
 
       async function loadRows() {
@@ -431,40 +434,103 @@
         const res = await fetch(url);
         const data = await res.json();
         if (!res.ok || !data.ok) throw new Error(data.error || "โหลดไม่สำเร็จ");
-        rows = (data.rows || []).filter(Boolean);
-        // ใหม่สุดขึ้นก่อน
-        rows.reverse();
-        idx = 0;
-      }
+        // เรียงข้อมูล ใหม่ → เก่า
+        const fetched = (data.rows || [])
+      .filter(Boolean)
+      .sort((a, b) => new Date(b.time) - new Date(a.time));
 
-      async function start() {
-        try {
-          await loadRows();
-          if (rows.length === 0) {
-            elName.textContent = "ยังไม่มีคนฝากข้อความ";
-            elMeta.textContent = "";
-            elMsg.textContent = "รอคนสแกน QR แล้วส่งได้เลย 🎉";
-            return;
+// โหลดครั้งแรก → ใส่เข้าคิวหลักทั้งหมด
+      if (mainQueue.length === 0) {
+      mainQueue = fetched;
+      mainIdx = 0;
+      return;
+    }
+
+// สร้างชุดข้อมูลที่เคยโชว์แล้ว (กันซ้ำ)
+    const known = new Set(
+  [...mainQueue, ...priorityQueue]
+    .map(r => r.time)
+    .filter(Boolean)
+);
+
+// คัดเฉพาะ "ของใหม่จริง"
+    const newOnes = fetched.filter(r => !known.has(r.time));
+
+// 🔥 แทรกของใหม่เข้า priority queue
+    newOnes.forEach(r => {
+  if (!priorityQueue.some(p => p.time === r.time)) {
+    priorityQueue.push(r);
           }
-          setSlide(rows[idx]);
-          setInterval(async () => {
-            idx = (idx + 1) % rows.length;
-            setSlide(rows[idx]);
-            // รีเฟรชรายการทุก 1 รอบ เพื่อดึงของใหม่
-            if (idx === 0) {
-              try {
-                await loadRows();
-              } catch (e) {
-                /* ignore */
-              }
-            }
-          }, CONFIG.INTERVAL_MS);
-        } catch (e) {
-          elName.textContent = "ตั้งค่าไม่ครบ/โหลดไม่สำเร็จ";
-          elMeta.textContent = "";
-          elMsg.textContent = String(e.message || e);
-        }
+        });
+     // หลังจาก push เข้า priorityQueue แล้ว
+if (newOnes.length > 0) {
+  // รวมของใหม่เข้า mainQueue ด้วย
+  mainQueue = [...newOnes, ...mainQueue];
+
+  // ป้องกัน index ชี้เลย
+  if (mainIdx >= mainQueue.length) {
+    mainIdx = 0;
+  }
+}
+   
+  }
+function nextSlide() {
+  // 🔥 ถ้ามีของใหม่ → interrupt ทันที
+  if (priorityQueue.length > 0) {
+    return priorityQueue.shift();
+  }
+
+  // ไม่มีข้อมูลเลย
+  if (mainQueue.length === 0) return null;
+
+  // ✅ reset index เมื่อถึงท้าย
+  if (mainIdx >= mainQueue.length) {
+    mainIdx = 0;
+  }
+
+  const r = mainQueue[mainIdx];
+  mainIdx++;
+  return r;
+}
+
+async function start() {
+  try {
+    await loadRows();
+
+    // ไม่มีข้อมูลเลย
+    if (mainQueue.length === 0) {
+      elName.textContent = "ยังไม่มีคนฝากข้อความ";
+      elMeta.textContent = "";
+      elMsg.textContent = "รอคนสแกน QR แล้วส่งได้เลย 🎉";
+      elTiny.textContent = "";
+      return;
+    }
+
+    // แสดงสไลด์แรก
+    const first = nextSlide();
+    if (first) setSlide(first);
+
+    // loop หลัก
+    setInterval(async () => {
+      const slide = nextSlide();
+      if (slide) setSlide(slide);
+
+      // 🔄 เช็คของใหม่ทุก interval (interrupt ได้ทันที)
+      try {
+        await loadRows();
+      } catch (e) {
+        /* ignore */
       }
+    }, CONFIG.INTERVAL_MS);
+
+  } catch (e) {
+    elName.textContent = "ตั้งค่าไม่ครบ/โหลดไม่สำเร็จ";
+    elMeta.textContent = "";
+    elMsg.textContent = String(e.message || e);
+    elTiny.textContent = "";
+  }
+}
+    
       start();
     </script>
   </body>
